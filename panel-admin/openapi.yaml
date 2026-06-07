@@ -1,0 +1,3077 @@
+openapi: 3.0.3
+info:
+  title: Recolecta Celaya - API Panel Administrador
+  version: 1.0.0
+  description: >
+    API administrativa para monitoreo de rutas, camiones, GPS, alertas,
+    reportes de chofer, notificaciones, ciudadanos registrados, usuarios internos
+    y sesiones anónimas del sistema Recolecta Celaya.
+
+servers:
+  - url: http://localhost:3000/api
+    description: Desarrollo local Next.js
+  - url: https://tu-dominio.vercel.app/api
+    description: Producción
+
+tags:
+  - name: Auth
+    description: Autenticación y sesión del administrador
+  - name: Dashboard
+    description: Resumen general del sistema
+  - name: Usuarios
+    description: Alta, consulta y administración de usuarios internos y ciudadanos
+  - name: Rutas
+    description: Administración de rutas y colonias asociadas
+  - name: Camiones
+    description: Administración de camiones recolectores
+  - name: GPS
+    description: Monitoreo de ubicación y estado de dispositivos GPS
+  - name: Recorridos
+    description: Jornadas activas o históricas de recolección
+  - name: Alertas
+    description: Alertas administrativas generadas por GPS, SOS o reportes
+  - name: ReportesChofer
+    description: Reportes enviados por choferes
+  - name: Ciudadanos
+    description: Usuarios registrados, domicilios y dispositivos
+  - name: Anonimos
+    description: Sesiones anónimas y actividad limitada
+  - name: Notificaciones
+    description: Envío e historial de notificaciones
+  - name: Combustible
+    description: Estimación y registro de consumo de combustible
+  - name: Avisos
+    description: Avisos generales para ciudadanos
+  - name: AnonimosPublic
+    description: >
+      Endpoints públicos consumidos por el cliente móvil para sesiones anónimas.
+      No requieren autenticación de administrador. No permiten registrar
+      colonias ni domicilios.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /admin/auth/me:
+    get:
+      tags: [Auth]
+      summary: Obtener información del administrador autenticado
+      description: Devuelve el perfil del usuario actual y valida que tenga rol de administrador.
+      responses:
+        "200":
+          description: Perfil del administrador autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProfileResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Obtener resumen general del panel administrador
+      description: >
+        Devuelve métricas principales: camiones activos, rutas activas,
+        recorridos en curso, alertas pendientes, reportes recientes,
+        GPS desconectados, ciudadanos registrados y sesiones anónimas.
+      responses:
+        "200":
+          description: Resumen del sistema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/usuarios:
+    get:
+      tags: [Usuarios]
+      summary: Listar usuarios del sistema
+      description: Lista administradores, choferes y ciudadanos registrados.
+      parameters:
+        - name: rol
+          in: query
+          schema:
+            $ref: "#/components/schemas/RolUsuario"
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Buscar por nombre, apellidos o correo
+        - name: activo
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuariosListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Usuarios]
+      summary: Crear usuario desde panel administrador
+      description: >
+        Permite al administrador dar de alta usuarios internos como choferes,
+        administradores o ciudadanos. El backend debe usar la Service Role Key
+        de Supabase únicamente del lado servidor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioCreateRequest"
+      responses:
+        "201":
+          description: Usuario creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/usuarios/{usuarioId}:
+    get:
+      tags: [Usuarios]
+      summary: Obtener detalle de usuario
+      parameters:
+        - $ref: "#/components/parameters/UsuarioIdPath"
+      responses:
+        "200":
+          description: Detalle del usuario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioDetalle"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [Usuarios]
+      summary: Actualizar usuario
+      parameters:
+        - $ref: "#/components/parameters/UsuarioIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioUpdateRequest"
+      responses:
+        "200":
+          description: Usuario actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Usuarios]
+      summary: Desactivar usuario
+      description: >
+        No elimina físicamente al usuario; solamente lo marca como inactivo
+        para conservar trazabilidad de recorridos, reportes y alertas.
+      parameters:
+        - $ref: "#/components/parameters/UsuarioIdPath"
+      responses:
+        "200":
+          description: Usuario desactivado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/usuarios/choferes:
+    get:
+      tags: [Usuarios]
+      summary: Listar choferes
+      description: Lista únicamente usuarios con rol de chofer.
+      parameters:
+        - name: activo
+          in: query
+          schema:
+            type: boolean
+        - name: disponible
+          in: query
+          schema:
+            type: boolean
+          description: Filtra choferes sin recorrido activo asignado.
+      responses:
+        "200":
+          description: Lista de choferes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChoferesListResponse"
+
+  /admin/usuarios/{usuarioId}/reset-password:
+    post:
+      tags: [Usuarios]
+      summary: Generar restablecimiento de contraseña
+      description: >
+        Permite al administrador generar una contraseña temporal o enviar
+        un correo de restablecimiento al usuario.
+      parameters:
+        - $ref: "#/components/parameters/UsuarioIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Restablecimiento procesado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/rutas:
+    get:
+      tags: [Rutas]
+      summary: Listar rutas
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: activo
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Buscar por routeId o nombre de ruta
+      responses:
+        "200":
+          description: Lista de rutas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RutasListResponse"
+
+    post:
+      tags: [Rutas]
+      summary: Crear ruta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RutaCreateRequest"
+      responses:
+        "201":
+          description: Ruta creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ruta"
+
+  /admin/rutas/{rutaId}:
+    get:
+      tags: [Rutas]
+      summary: Obtener detalle de una ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      responses:
+        "200":
+          description: Detalle de ruta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RutaDetalle"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [Rutas]
+      summary: Actualizar ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RutaUpdateRequest"
+      responses:
+        "200":
+          description: Ruta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ruta"
+
+    delete:
+      tags: [Rutas]
+      summary: Desactivar ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      responses:
+        "200":
+          description: Ruta desactivada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/rutas/{rutaId}/posiciones:
+    get:
+      tags: [Rutas]
+      summary: Listar checkpoints de una ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      responses:
+        "200":
+          description: Checkpoints de ruta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RutaPosicionesResponse"
+
+    post:
+      tags: [Rutas]
+      summary: Crear checkpoint para una ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RutaPosicionCreateRequest"
+      responses:
+        "201":
+          description: Checkpoint creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RutaPosicion"
+
+
+  /admin/colonias:
+    get:
+      tags: [Colonias]
+      summary: Listar colonias
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: activa
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de colonias
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColoniasListResponse"
+    post:
+      tags: [Colonias]
+      summary: Crear colonia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ColoniaCreate"
+      responses:
+        "201":
+          description: Colonia creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colonia"
+
+  /admin/colonias/{coloniaId}:
+    patch:
+      tags: [Colonias]
+      summary: Actualizar colonia
+      parameters:
+        - name: coloniaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ColoniaUpdate"
+      responses:
+        "200":
+          description: Colonia actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colonia"
+    delete:
+      tags: [Colonias]
+      summary: Eliminar o desactivar colonia
+      parameters:
+        - name: coloniaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Colonia eliminada o desactivada lgicamente
+
+  /admin/rutas/{rutaId}/colonias:
+    get:
+      tags: [Rutas]
+      summary: Listar colonias asociadas a una ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      responses:
+        "200":
+          description: Colonias asociadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColoniaRutaListResponse"
+
+    post:
+      tags: [Rutas]
+      summary: Asociar colonia a ruta
+      parameters:
+        - $ref: "#/components/parameters/RutaIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ColoniaRutaCreateRequest"
+      responses:
+        "201":
+          description: Colonia asociada a ruta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColoniaRuta"
+
+  /admin/camiones:
+    get:
+      tags: [Camiones]
+      summary: Listar camiones
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: estado
+          in: query
+          schema:
+            type: string
+            example: activo
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Buscar por clave, nombre o truckId externo
+      responses:
+        "200":
+          description: Lista de camiones
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CamionesListResponse"
+
+    post:
+      tags: [Camiones]
+      summary: Crear camión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CamionCreateRequest"
+      responses:
+        "201":
+          description: Camión creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Camion"
+
+  /admin/camiones/{camionId}:
+    get:
+      tags: [Camiones]
+      summary: Obtener detalle de camión
+      parameters:
+        - $ref: "#/components/parameters/CamionIdPath"
+      responses:
+        "200":
+          description: Detalle del camión
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CamionDetalle"
+
+    patch:
+      tags: [Camiones]
+      summary: Actualizar camión
+      parameters:
+        - $ref: "#/components/parameters/CamionIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CamionUpdateRequest"
+      responses:
+        "200":
+          description: Camión actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Camion"
+
+  /camiones/gps:
+    post:
+      tags: [GPS]
+      summary: Registrar ubicación enviada por camión o prototipo ESP32
+      description: >
+        Recibe coordenadas desde el GPS del camión, app del chofer o prototipo ESP32.
+        Este endpoint no requiere sesión de administrador; debe protegerse con una API key
+        del dispositivo.
+      security:
+        - deviceApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CamionGpsRequest"
+      responses:
+        "201":
+          description: Ubicación GPS registrada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/gps/estado:
+    get:
+      tags: [GPS]
+      summary: Obtener estado GPS de los camiones
+      description: Lista camiones con estado del GPS, fuente activa y minutos sin señal.
+      responses:
+        "200":
+          description: Estado GPS por camión
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GpsEstadoResponse"
+
+  /admin/gps/ingestas:
+    get:
+      tags: [GPS]
+      summary: Listar ingestas crudas de GPS
+      parameters:
+        - name: camionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: recorridoId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: fuente
+          in: query
+          schema:
+            $ref: "#/components/schemas/FuenteUbicacion"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de ingestas GPS
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GpsIngestasResponse"
+
+  /admin/gps/registrar:
+    post:
+      tags: [GPS]
+      summary: Registrar ubicación GPS manual o desde prototipo
+      description: >
+        Endpoint útil para pruebas del hackatón. Internamente puede llamar la RPC
+        registrar_ingesta_gps de Supabase.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GpsRegistrarRequest"
+      responses:
+        "201":
+          description: Ubicación registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/recorridos:
+    get:
+      tags: [Recorridos]
+      summary: Listar recorridos
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            example: en_ruta
+        - name: rutaId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: camionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: fecha
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de recorridos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecorridosListResponse"
+
+    post:
+      tags: [Recorridos]
+      summary: Iniciar recorrido
+      description: Permite iniciar una jornada asignando ruta, camión y chofer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecorridoCreateRequest"
+      responses:
+        "201":
+          description: Recorrido iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recorrido"
+
+  /admin/recorridos/{recorridoId}:
+    get:
+      tags: [Recorridos]
+      summary: Obtener detalle de recorrido
+      parameters:
+        - $ref: "#/components/parameters/RecorridoIdPath"
+      responses:
+        "200":
+          description: Detalle del recorrido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecorridoDetalle"
+
+    patch:
+      tags: [Recorridos]
+      summary: Actualizar recorrido
+      parameters:
+        - $ref: "#/components/parameters/RecorridoIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecorridoUpdateRequest"
+      responses:
+        "200":
+          description: Recorrido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recorrido"
+
+  /admin/recorridos/{recorridoId}/finalizar:
+    post:
+      tags: [Recorridos]
+      summary: Finalizar recorrido
+      parameters:
+        - $ref: "#/components/parameters/RecorridoIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizarRecorridoRequest"
+      responses:
+        "200":
+          description: Recorrido finalizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recorrido"
+
+  /admin/alertas:
+    get:
+      tags: [Alertas]
+      summary: Listar alertas administrativas
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            $ref: "#/components/schemas/EstadoAlertaAdmin"
+        - name: tipo
+          in: query
+          schema:
+            $ref: "#/components/schemas/TipoAlertaAdmin"
+        - name: prioridad
+          in: query
+          schema:
+            type: string
+            enum: [baja, media, alta, critica]
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de alertas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertasListResponse"
+
+    post:
+      tags: [Alertas]
+      summary: Crear alerta administrativa manual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertaCreateRequest"
+      responses:
+        "201":
+          description: Alerta creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertaAdmin"
+
+  /admin/alertas/{alertaId}:
+    get:
+      tags: [Alertas]
+      summary: Obtener detalle de alerta
+      parameters:
+        - $ref: "#/components/parameters/AlertaIdPath"
+      responses:
+        "200":
+          description: Detalle de alerta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertaAdmin"
+
+    patch:
+      tags: [Alertas]
+      summary: Actualizar estado de alerta
+      parameters:
+        - $ref: "#/components/parameters/AlertaIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertaUpdateRequest"
+      responses:
+        "200":
+          description: Alerta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertaAdmin"
+
+  /admin/reportes-chofer:
+    get:
+      tags: [ReportesChofer]
+      summary: Listar reportes de chofer
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            example: nuevo
+        - name: tipo
+          in: query
+          schema:
+            $ref: "#/components/schemas/TipoReporteChofer"
+        - name: recorridoId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de reportes de chofer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportesChoferListResponse"
+
+  /admin/reportes-chofer/{reporteId}:
+    get:
+      tags: [ReportesChofer]
+      summary: Obtener detalle de reporte de chofer
+      parameters:
+        - $ref: "#/components/parameters/ReporteIdPath"
+      responses:
+        "200":
+          description: Detalle del reporte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReporteChofer"
+
+    patch:
+      tags: [ReportesChofer]
+      summary: Actualizar estado de reporte de chofer
+      parameters:
+        - $ref: "#/components/parameters/ReporteIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReporteChoferUpdateRequest"
+      responses:
+        "200":
+          description: Reporte actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReporteChofer"
+
+  /admin/reportes-chofer/{reporteId}/notificar-afectados:
+    post:
+      tags: [ReportesChofer, Notificaciones]
+      summary: Notificar a usuarios afectados por reporte del chofer
+      description: >
+        Envía notificación push a ciudadanos con domicilios asociados a la ruta afectada.
+      parameters:
+        - $ref: "#/components/parameters/ReporteIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificarAfectadosRequest"
+      responses:
+        "200":
+          description: Notificación enviada a usuarios afectados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificacionMasivaResponse"
+
+  /admin/ciudadanos:
+    get:
+      tags: [Ciudadanos]
+      summary: Listar ciudadanos registrados
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Buscar por nombre o correo
+        - name: coloniaId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de ciudadanos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiudadanosListResponse"
+
+  /admin/ciudadanos/{usuarioId}:
+    get:
+      tags: [Ciudadanos]
+      summary: Obtener detalle de ciudadano registrado
+      parameters:
+        - $ref: "#/components/parameters/UsuarioIdPath"
+      responses:
+        "200":
+          description: Detalle del ciudadano
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiudadanoDetalle"
+
+  /admin/ciudadanos/{usuarioId}/domicilios:
+    get:
+      tags: [Ciudadanos]
+      summary: Listar domicilios de un ciudadano
+      parameters:
+        - $ref: "#/components/parameters/UsuarioIdPath"
+      responses:
+        "200":
+          description: Domicilios del ciudadano
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomiciliosUsuarioResponse"
+
+  /admin/anonimos/sesiones:
+    get:
+      tags: [Anonimos]
+      summary: Listar sesiones anónimas
+      description: Solo para monitoreo administrativo; no expone datos personales.
+      parameters:
+        - name: coloniaId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: activo
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de sesiones anónimas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SesionesAnonimasListResponse"
+
+  /admin/anonimos/eventos:
+    get:
+      tags: [Anonimos]
+      summary: Listar eventos de usuarios anónimos
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            $ref: "#/components/schemas/TipoEventoAnonimo"
+        - name: coloniaId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Eventos anónimos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventosAnonimosListResponse"
+
+  /admin/anonimos/estadisticas:
+    get:
+      tags: [Anonimos]
+      summary: Métricas agregadas de sesiones anónimas
+      description: >
+        Devuelve KPIs (conectados ahora, sesiones de hoy, eventos de hoy,
+        consultas anónimas), top de colonias con más conexiones anónimas,
+        distribución por tipo de evento y serie diaria de los últimos 7 días.
+        Pensado para alimentar el dashboard administrativo.
+      responses:
+        "200":
+          description: Estadísticas del modo anónimo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstadisticasAnonimosResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/notificaciones:
+    get:
+      tags: [Notificaciones]
+      summary: Listar historial de notificaciones enviadas
+      parameters:
+        - name: usuarioId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: evento
+          in: query
+          schema:
+            $ref: "#/components/schemas/TipoEventoNotificacion"
+        - name: enviado
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Historial de notificaciones
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificacionesListResponse"
+
+  /admin/notificaciones/enviar-general:
+    post:
+      tags: [Notificaciones]
+      summary: Enviar notificación general
+      description: Envía una notificación general a ciudadanos registrados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnviarNotificacionGeneralRequest"
+      responses:
+        "200":
+          description: Notificación general procesada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificacionMasivaResponse"
+
+  /admin/combustible:
+    get:
+      tags: [Combustible]
+      summary: Listar registros de consumo de combustible
+      parameters:
+        - name: camionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: fecha
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de registros de combustible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CombustibleListResponse"
+
+    post:
+      tags: [Combustible]
+      summary: Crear registro de combustible
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CombustibleCreateRequest"
+      responses:
+        "201":
+          description: Registro de combustible creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsumoCombustible"
+
+  /admin/combustible/estimar/{recorridoId}:
+    get:
+      tags: [Combustible]
+      summary: Estimar combustible de un recorrido
+      parameters:
+        - $ref: "#/components/parameters/RecorridoIdPath"
+      responses:
+        "200":
+          description: Estimación de combustible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstimacionCombustible"
+
+  /admin/avisos:
+    get:
+      tags: [Avisos]
+      summary: Listar avisos
+      parameters:
+        - name: activo
+          in: query
+          schema:
+            type: boolean
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            example: general
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Lista de avisos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvisosListResponse"
+
+    post:
+      tags: [Avisos]
+      summary: Crear aviso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvisoCreateRequest"
+      responses:
+        "201":
+          description: Aviso creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Aviso"
+
+  /anonimos/sesion:
+    post:
+      tags: [AnonimosPublic]
+      summary: Registrar o actualizar una sesión anónima
+      description: >
+        Crea una sesión anónima identificada por session_token generado en el
+        dispositivo móvil. Si el token ya existe, refresca su ultimo_uso_en y
+        expira_en. NO permite registrar colonias ni domicilios.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrarSesionAnonimaRequest"
+      responses:
+        "200":
+          description: Sesión creada o refrescada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrarSesionAnonimaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /anonimos/camion:
+    get:
+      tags: [AnonimosPublic]
+      summary: Consultar ubicación del camión para un usuario anónimo
+      description: >
+        Devuelve la posición del camión SOLO si el camión se encuentra en
+        punto de proximidad de la colonia asociada a la sesión anónima.
+        Toda la lógica de visibilidad vive en la RPC obtener_camion_para_anonimo.
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resultado de la consulta limitada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CamionParaAnonimoResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /anonimos/evento:
+    post:
+      tags: [AnonimosPublic]
+      summary: Registrar evento analítico anónimo
+      description: >
+        Persiste un evento de uso para análisis. Los tipos "intento_*" indican
+        que el usuario quiso usar una función restringida (registrar domicilio
+        o activar push); se registran sin habilitar la función.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrarEventoAnonimoRequest"
+      responses:
+        "200":
+          description: Evento registrado
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /anonimos/colonias-horarios:
+    get:
+      tags: [AnonimosPublic]
+      summary: Vista pública de colonias con su horario de ruta
+      description: >
+        Lista colonias activas y el horario estimado de recolección.
+        No expone domicilios, usuarios ni datos privados.
+      security: []
+      parameters:
+        - name: coloniaId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de colonias con horario público
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ColoniaHorarioPublico"
+
+  /anonimos/permisos:
+    get:
+      tags: [AnonimosPublic]
+      summary: Matriz de permisos por modo de usuario
+      description: >
+        Devuelve qué funciones están disponibles para el modo anónimo y para
+        el ciudadano registrado. La app móvil la usa para ocultar opciones.
+      security: []
+      responses:
+        "200":
+          description: Matriz de permisos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PermisoModoUsuario"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    RutaIdPath:
+      name: rutaId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    CamionIdPath:
+      name: camionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    DeviceApiKey:
+      type: apiKey
+      in: header
+      name: x-device-key
+
+    RecorridoIdPath:
+      name: recorridoId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    AlertaIdPath:
+      name: alertaId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ReporteIdPath:
+      name: reporteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    UsuarioIdPath:
+      name: usuarioId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Unauthorized:
+      description: No autenticado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Forbidden:
+      description: No autorizado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+
+    DateTime:
+      type: string
+      format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 125
+        totalPages:
+          type: integer
+          example: 7
+
+    SuccessResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operación realizada correctamente
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: No autorizado
+        details:
+          type: object
+          nullable: true
+
+    RolUsuario:
+      type: string
+      enum: [admin, chofer, ciudadano]
+
+    FuenteUbicacion:
+      type: string
+      enum:
+        - gps_camion_api
+        - gps_camion_propio
+        - app_chofer
+        - manual
+
+    EstadoGps:
+      type: string
+      enum:
+        - online
+        - offline
+        - sin_senal
+        - estatico
+        - bateria_baja
+        - desconocido
+
+    TipoAlertaAdmin:
+      type: string
+      enum:
+        - gps_desconectado
+        - gps_estatico
+        - bateria_baja
+        - sos
+        - reporte_chofer
+        - retraso_ruta
+        - fallback_gps
+        - otro
+
+    EstadoAlertaAdmin:
+      type: string
+      enum:
+        - nueva
+        - vista
+        - en_revision
+        - resuelta
+        - descartada
+
+    TipoReporteChofer:
+      type: string
+      enum:
+        - falla_mecanica
+        - accidente
+        - trafico
+        - bloqueo
+        - gps_fallando
+        - retraso
+        - emergencia
+        - otro
+
+    TipoEventoNotificacion:
+      type: string
+      enum:
+        - route_start
+        - truck_proximity
+        - route_completed
+        - gps_disconnected
+        - driver_report
+        - general_notice
+
+    TipoEventoAnonimo:
+      type: string
+      enum:
+        - consulta_colonia
+        - consulta_horario
+        - consulta_ubicacion_camion
+        - consulta_aviso
+        - intento_registrar_domicilio
+        - intento_activar_notificaciones
+        - conversion_a_registrado
+
+    AdminProfileResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        nombre:
+          type: string
+          example: Administrador
+        correo:
+          type: string
+          example: admin@recolecta.com
+        rol:
+          $ref: "#/components/schemas/RolUsuario"
+
+    DashboardResponse:
+      type: object
+      properties:
+        camionesActivos:
+          type: integer
+          example: 12
+        rutasActivas:
+          type: integer
+          example: 18
+        recorridosEnCurso:
+          type: integer
+          example: 5
+        alertasPendientes:
+          type: integer
+          example: 3
+        reportesChoferPendientes:
+          type: integer
+          example: 2
+        gpsDesconectados:
+          type: integer
+          example: 1
+        ciudadanosRegistrados:
+          type: integer
+          example: 245
+        choferesActivos:
+          type: integer
+          example: 15
+        sesionesAnonimasActivas:
+          type: integer
+          example: 38
+        consumoEstimadoDiaLitros:
+          type: object
+          properties:
+            minimo:
+              type: number
+              example: 720
+            maximo:
+              type: number
+              example: 1080
+
+    Usuario:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        nombre:
+          type: string
+          example: Juan
+        apellidos:
+          type: string
+          nullable: true
+          example: Pérez López
+        correo:
+          type: string
+          example: juan.perez@recolecta.com
+        telefono:
+          type: string
+          nullable: true
+          example: "4611234567"
+        rol:
+          $ref: "#/components/schemas/RolUsuario"
+        activo:
+          type: boolean
+          example: true
+        aceptaPrivacidad:
+          type: boolean
+          example: true
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+        actualizadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    UsuarioCreateRequest:
+      type: object
+      required: [nombre, correo, rol]
+      properties:
+        nombre:
+          type: string
+          example: Juan
+        apellidos:
+          type: string
+          example: Pérez López
+        correo:
+          type: string
+          example: juan.perez@recolecta.com
+        telefono:
+          type: string
+          example: "4611234567"
+        rol:
+          $ref: "#/components/schemas/RolUsuario"
+        password:
+          type: string
+          example: Chofer123*
+          description: Contraseña inicial o temporal.
+        enviarInvitacion:
+          type: boolean
+          example: true
+        activo:
+          type: boolean
+          example: true
+        datosChofer:
+          $ref: "#/components/schemas/DatosChoferCreate"
+
+    UsuarioUpdateRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: Juan
+        apellidos:
+          type: string
+          example: Pérez López
+        telefono:
+          type: string
+          example: "4611234567"
+        rol:
+          $ref: "#/components/schemas/RolUsuario"
+        activo:
+          type: boolean
+          example: true
+        aceptaPrivacidad:
+          type: boolean
+          example: true
+
+    UsuarioDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Usuario"
+        - type: object
+          properties:
+            datosChofer:
+              $ref: "#/components/schemas/DatosChofer"
+            recorridosAsignados:
+              type: array
+              items:
+                $ref: "#/components/schemas/Recorrido"
+            reportesChofer:
+              type: array
+              items:
+                $ref: "#/components/schemas/ReporteChofer"
+            domicilios:
+              type: array
+              items:
+                $ref: "#/components/schemas/DomicilioUsuario"
+
+    UsuariosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Usuario"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    ChoferesListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Usuario"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    DatosChoferCreate:
+      type: object
+      nullable: true
+      properties:
+        numeroEmpleado:
+          type: string
+          example: CH-001
+        licencia:
+          type: string
+          example: LIC-123456
+        telefonoEmergencia:
+          type: string
+          example: "4619876543"
+        observaciones:
+          type: string
+          example: Chofer asignado a turno matutino
+
+    DatosChofer:
+      type: object
+      nullable: true
+      properties:
+        numeroEmpleado:
+          type: string
+          example: CH-001
+        licencia:
+          type: string
+          example: LIC-123456
+        telefonoEmergencia:
+          type: string
+          example: "4619876543"
+        observaciones:
+          type: string
+          example: Chofer asignado a turno matutino
+        disponible:
+          type: boolean
+          example: true
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        enviarCorreo:
+          type: boolean
+          example: true
+        passwordTemporal:
+          type: string
+          example: Chofer123*
+
+    Ruta:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        routeId:
+          type: string
+          example: RUTA-01
+        nombre:
+          type: string
+          example: Zona Centro - Las Arboledas
+        descripcion:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          example: activa
+        colorMapa:
+          type: string
+          example: "#00897B"
+        activo:
+          type: boolean
+          example: true
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    RutaCreateRequest:
+      type: object
+      required: [routeId, nombre]
+      properties:
+        routeId:
+          type: string
+          example: RUTA-01
+        nombre:
+          type: string
+          example: Zona Centro - Las Arboledas
+        descripcion:
+          type: string
+        colorMapa:
+          type: string
+          example: "#00897B"
+
+    RutaUpdateRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        estado:
+          type: string
+          example: activa
+        colorMapa:
+          type: string
+        activo:
+          type: boolean
+
+    RutaDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Ruta"
+        - type: object
+          properties:
+            posiciones:
+              type: array
+              items:
+                $ref: "#/components/schemas/RutaPosicion"
+            colonias:
+              type: array
+              items:
+                $ref: "#/components/schemas/ColoniaRuta"
+
+    RutasListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ruta"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    RutaPosicion:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        positionId:
+          type: integer
+          example: 4
+        latitud:
+          type: number
+          example: 20.5212
+        longitud:
+          type: number
+          example: -100.8175
+        velocidadReferenciaKmh:
+          type: number
+          nullable: true
+          example: 15
+        esBaseSalida:
+          type: boolean
+          example: false
+        esPuntoProximidad:
+          type: boolean
+          example: true
+        esRetornoBase:
+          type: boolean
+          example: false
+        descripcion:
+          type: string
+          nullable: true
+
+    RutaPosicionCreateRequest:
+      type: object
+      required: [positionId, latitud, longitud]
+      properties:
+        positionId:
+          type: integer
+          example: 4
+        latitud:
+          type: number
+          example: 20.5212
+        longitud:
+          type: number
+          example: -100.8175
+        velocidadReferenciaKmh:
+          type: number
+        esBaseSalida:
+          type: boolean
+        esPuntoProximidad:
+          type: boolean
+        esRetornoBase:
+          type: boolean
+        descripcion:
+          type: string
+
+    RutaPosicionesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RutaPosicion"
+
+
+    Colonia:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        latitud:
+          type: number
+        longitud:
+          type: number
+        activa:
+          type: boolean
+        creado_en:
+          type: string
+          format: date-time
+        actualizado_en:
+          type: string
+          format: date-time
+
+    ColoniaCreate:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        latitud:
+          type: number
+        longitud:
+          type: number
+        activa:
+          type: boolean
+
+    ColoniaUpdate:
+      type: object
+      properties:
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        latitud:
+          type: number
+        longitud:
+          type: number
+        activa:
+          type: boolean
+
+    ColoniasListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Colonia"
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    ColoniaRuta:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        coloniaId:
+          $ref: "#/components/schemas/UUID"
+        colonia:
+          type: string
+          example: Zona Centro
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        routeId:
+          type: string
+          example: RUTA-01
+        horarioEstimado:
+          type: string
+          example: Matutino (06:30 - 07:15)
+        horaInicioEstimada:
+          type: string
+          example: "06:30"
+        horaFinEstimada:
+          type: string
+          example: "07:15"
+        activo:
+          type: boolean
+          example: true
+
+    ColoniaRutaCreateRequest:
+      type: object
+      required: [coloniaId]
+      properties:
+        coloniaId:
+          $ref: "#/components/schemas/UUID"
+        horarioEstimado:
+          type: string
+          example: Matutino (06:30 - 07:15)
+        horaInicioEstimada:
+          type: string
+          example: "06:30"
+        horaFinEstimada:
+          type: string
+          example: "07:15"
+
+    ColoniaRutaListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColoniaRuta"
+
+    Camion:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        clave:
+          type: string
+          example: CAM-101
+        nombre:
+          type: string
+          example: Camión 101
+        truckIdExterno:
+          type: integer
+          example: 101
+        estado:
+          type: string
+          example: activo
+        consumoMinLitrosDia:
+          type: number
+          example: 60
+        consumoMaxLitrosDia:
+          type: number
+          example: 90
+        capacidadCombustibleLitros:
+          type: number
+          nullable: true
+          example: 120
+
+    CamionCreateRequest:
+      type: object
+      required: [clave, nombre]
+      properties:
+        clave:
+          type: string
+          example: CAM-101
+        nombre:
+          type: string
+          example: Camión 101
+        truckIdExterno:
+          type: integer
+          example: 101
+        consumoMinLitrosDia:
+          type: number
+          example: 60
+        consumoMaxLitrosDia:
+          type: number
+          example: 90
+        capacidadCombustibleLitros:
+          type: number
+          example: 120
+
+    CamionUpdateRequest:
+      type: object
+      properties:
+        clave:
+          type: string
+        nombre:
+          type: string
+        estado:
+          type: string
+        truckIdExterno:
+          type: integer
+        consumoMinLitrosDia:
+          type: number
+        consumoMaxLitrosDia:
+          type: number
+        capacidadCombustibleLitros:
+          type: number
+        observacionesGps:
+          type: string
+
+    CamionDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Camion"
+        - type: object
+          properties:
+            gps:
+              $ref: "#/components/schemas/GpsEstado"
+            recorridoActivo:
+              $ref: "#/components/schemas/Recorrido"
+
+    CamionesListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Camion"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    CamionGpsRequest:
+      type: object
+      required: [camionId, fuente, latitud, longitud]
+      properties:
+        camionId:
+          type: string
+          format: uuid
+        recorridoId:
+          type: string
+          format: uuid
+          nullable: true
+        dispositivoId:
+          type: string
+          format: uuid
+          nullable: true
+        fuente:
+          $ref: "#/components/schemas/FuenteUbicacion"
+        positionId:
+          type: integer
+          nullable: true
+          example: 4
+        latitud:
+          type: number
+          example: 20.5212
+        longitud:
+          type: number
+          example: -100.8175
+        velocidadKmh:
+          type: number
+          example: 15.2
+        direccionGrados:
+          type: number
+          nullable: true
+          example: 180
+        satelites:
+          type: integer
+          example: 7
+        altitud:
+          type: number
+          example: 1750.2
+        timestampOrigen:
+          type: string
+          format: date-time
+          nullable: true
+        payloadRaw:
+          type: object
+          nullable: true
+
+    GpsEstado:
+      type: object
+      properties:
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        camion:
+          type: string
+          example: CAM-101
+        dispositivoId:
+          $ref: "#/components/schemas/UUID"
+        dispositivo:
+          type: string
+          example: GPS principal
+        fuente:
+          $ref: "#/components/schemas/FuenteUbicacion"
+        estado:
+          $ref: "#/components/schemas/EstadoGps"
+        prioridad:
+          type: integer
+          example: 1
+        ultimaConexion:
+          $ref: "#/components/schemas/DateTime"
+        minutosSinSenal:
+          type: number
+          example: 12.5
+
+    GpsEstadoResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GpsEstado"
+
+    GpsIngesta:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        dispositivoId:
+          $ref: "#/components/schemas/UUID"
+        fuente:
+          $ref: "#/components/schemas/FuenteUbicacion"
+        positionId:
+          type: integer
+          nullable: true
+          example: 4
+        latitud:
+          type: number
+          example: 20.5212
+        longitud:
+          type: number
+          example: -100.8175
+        velocidadKmh:
+          type: number
+          example: 15
+        recibidoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    GpsIngestasResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GpsIngesta"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    GpsRegistrarRequest:
+      type: object
+      required: [camionId, recorridoId, fuente, latitud, longitud]
+      properties:
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        dispositivoId:
+          $ref: "#/components/schemas/UUID"
+        fuente:
+          $ref: "#/components/schemas/FuenteUbicacion"
+        latitud:
+          type: number
+        longitud:
+          type: number
+        velocidadKmh:
+          type: number
+        direccionGrados:
+          type: number
+        positionId:
+          type: integer
+        payloadRaw:
+          type: object
+
+    Recorrido:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        choferId:
+          $ref: "#/components/schemas/UUID"
+        estado:
+          type: string
+          example: en_ruta
+        fuenteGpsActiva:
+          $ref: "#/components/schemas/FuenteUbicacion"
+        ultimoPositionId:
+          type: integer
+          example: 4
+        salidaBaseConfirmada:
+          type: boolean
+          example: true
+        retornoBaseConfirmado:
+          type: boolean
+          example: false
+        combustibleEstimadoLitros:
+          type: number
+          nullable: true
+          example: 75
+
+    RecorridoCreateRequest:
+      type: object
+      required: [rutaId, camionId, choferId]
+      properties:
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        choferId:
+          $ref: "#/components/schemas/UUID"
+        kilometrajeInicio:
+          type: number
+          example: 12890.5
+
+    RecorridoUpdateRequest:
+      type: object
+      properties:
+        estado:
+          type: string
+          example: en_ruta
+        ultimoPositionId:
+          type: integer
+        fuenteGpsActiva:
+          $ref: "#/components/schemas/FuenteUbicacion"
+        salidaBaseConfirmada:
+          type: boolean
+        retornoBaseConfirmado:
+          type: boolean
+        combustibleEstimadoLitros:
+          type: number
+
+    FinalizarRecorridoRequest:
+      type: object
+      properties:
+        kilometrajeFin:
+          type: number
+          example: 12984.4
+        observaciones:
+          type: string
+          example: Jornada finalizada sin incidentes.
+
+    RecorridoDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Recorrido"
+        - type: object
+          properties:
+            ruta:
+              $ref: "#/components/schemas/Ruta"
+            camion:
+              $ref: "#/components/schemas/Camion"
+            chofer:
+              $ref: "#/components/schemas/Usuario"
+            ubicacionActual:
+              $ref: "#/components/schemas/GpsIngesta"
+            alertas:
+              type: array
+              items:
+                $ref: "#/components/schemas/AlertaAdmin"
+
+    RecorridosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recorrido"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    AlertaAdmin:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        tipo:
+          $ref: "#/components/schemas/TipoAlertaAdmin"
+        estado:
+          $ref: "#/components/schemas/EstadoAlertaAdmin"
+        titulo:
+          type: string
+          example: GPS desconectado
+        mensaje:
+          type: string
+          example: El GPS del camión CAM-101 lleva más de 10 minutos sin señal.
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        choferId:
+          $ref: "#/components/schemas/UUID"
+        latitud:
+          type: number
+          nullable: true
+        longitud:
+          type: number
+          nullable: true
+        datos:
+          type: object
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    AlertaCreateRequest:
+      type: object
+      required: [tipo, titulo, mensaje]
+      properties:
+        tipo:
+          $ref: "#/components/schemas/TipoAlertaAdmin"
+        titulo:
+          type: string
+        mensaje:
+          type: string
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        choferId:
+          $ref: "#/components/schemas/UUID"
+        latitud:
+          type: number
+        longitud:
+          type: number
+        datos:
+          type: object
+
+    AlertaUpdateRequest:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          $ref: "#/components/schemas/EstadoAlertaAdmin"
+        comentario:
+          type: string
+          example: Se verificó con el chofer y el GPS volvió a estar en línea.
+
+    AlertasListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertaAdmin"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    ReporteChofer:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        choferId:
+          $ref: "#/components/schemas/UUID"
+        tipo:
+          $ref: "#/components/schemas/TipoReporteChofer"
+        titulo:
+          type: string
+          example: Tráfico intenso
+        descripcion:
+          type: string
+        latitud:
+          type: number
+          nullable: true
+        longitud:
+          type: number
+          nullable: true
+        estado:
+          type: string
+          example: nuevo
+        requiereNotificarUsuarios:
+          type: boolean
+          example: true
+        notificacionEnviada:
+          type: boolean
+          example: false
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    ReporteChoferUpdateRequest:
+      type: object
+      properties:
+        estado:
+          type: string
+          example: en_revision
+        requiereNotificarUsuarios:
+          type: boolean
+          example: true
+
+    ReportesChoferListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReporteChofer"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    NotificarAfectadosRequest:
+      type: object
+      required: [titulo, mensaje]
+      properties:
+        titulo:
+          type: string
+          example: Retraso en la ruta
+        mensaje:
+          type: string
+          example: El camión presenta retraso por tráfico. Te avisaremos cuando esté cerca.
+
+    Ciudadano:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        nombre:
+          type: string
+        apellidos:
+          type: string
+          nullable: true
+        correo:
+          type: string
+        aceptaPrivacidad:
+          type: boolean
+        fechaAceptaPrivacidad:
+          $ref: "#/components/schemas/DateTime"
+
+    CiudadanoDetalle:
+      allOf:
+        - $ref: "#/components/schemas/Ciudadano"
+        - type: object
+          properties:
+            domicilios:
+              type: array
+              items:
+                $ref: "#/components/schemas/DomicilioUsuario"
+            dispositivos:
+              type: array
+              items:
+                $ref: "#/components/schemas/DispositivoUsuario"
+
+    CiudadanosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ciudadano"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    DomicilioUsuario:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        usuarioId:
+          $ref: "#/components/schemas/UUID"
+        alias:
+          type: string
+          example: Casa
+        tipo:
+          type: string
+          example: casa
+        coloniaId:
+          $ref: "#/components/schemas/UUID"
+        colonia:
+          type: string
+          example: Las Arboledas
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        routeId:
+          type: string
+          example: RUTA-01
+        latitud:
+          type: number
+          nullable: true
+        longitud:
+          type: number
+          nullable: true
+        recibirNotificaciones:
+          type: boolean
+        minutosAnticipacion:
+          type: integer
+          example: 15
+        activo:
+          type: boolean
+
+    DomiciliosUsuarioResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomicilioUsuario"
+
+    DispositivoUsuario:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        usuarioId:
+          $ref: "#/components/schemas/UUID"
+        plataforma:
+          type: string
+          example: android
+        modeloDispositivo:
+          type: string
+          example: Pixel 7
+        appVersion:
+          type: string
+          example: 1.0.0
+        activo:
+          type: boolean
+        ultimoUsoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    SesionAnonima:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        tipo:
+          type: string
+          example: invitado
+        coloniaId:
+          $ref: "#/components/schemas/UUID"
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        plataforma:
+          type: string
+          example: android
+        puedeRegistrarDomicilio:
+          type: boolean
+          example: false
+        puedeRecibirPushPersonalizado:
+          type: boolean
+          example: false
+        soloVerCamionEnColonia:
+          type: boolean
+          example: true
+        activo:
+          type: boolean
+        ultimoUsoEn:
+          $ref: "#/components/schemas/DateTime"
+        expiraEn:
+          $ref: "#/components/schemas/DateTime"
+
+    SesionesAnonimasListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SesionAnonima"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    EventoAnonimo:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        sesionAnonimaId:
+          $ref: "#/components/schemas/UUID"
+        tipo:
+          $ref: "#/components/schemas/TipoEventoAnonimo"
+        coloniaId:
+          $ref: "#/components/schemas/UUID"
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        datos:
+          type: object
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    EventosAnonimosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventoAnonimo"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Notificacion:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        usuarioId:
+          $ref: "#/components/schemas/UUID"
+        domicilioId:
+          $ref: "#/components/schemas/UUID"
+        evento:
+          $ref: "#/components/schemas/TipoEventoNotificacion"
+        titulo:
+          type: string
+        mensaje:
+          type: string
+        enviado:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+        enviadoEn:
+          $ref: "#/components/schemas/DateTime"
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    NotificacionesListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notificacion"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    EnviarNotificacionGeneralRequest:
+      type: object
+      required: [titulo, mensaje]
+      properties:
+        titulo:
+          type: string
+          example: Aviso general
+        mensaje:
+          type: string
+          example: Hoy el servicio puede presentar retrasos por tráfico.
+        coloniaId:
+          type: string
+          format: uuid
+          nullable: true
+        rutaId:
+          type: string
+          format: uuid
+          nullable: true
+
+    NotificacionMasivaResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        usuariosObjetivo:
+          type: integer
+          example: 84
+        enviadas:
+          type: integer
+          example: 80
+        fallidas:
+          type: integer
+          example: 4
+        message:
+          type: string
+          example: Notificación procesada correctamente
+
+    ConsumoCombustible:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        fecha:
+          type: string
+          format: date
+        litrosEstimadosMin:
+          type: number
+          example: 60
+        litrosEstimadosMax:
+          type: number
+          example: 90
+        litrosRegistrados:
+          type: number
+          nullable: true
+        metodo:
+          type: string
+          example: estimado
+        observaciones:
+          type: string
+          nullable: true
+
+    CombustibleCreateRequest:
+      type: object
+      required: [camionId]
+      properties:
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        fecha:
+          type: string
+          format: date
+        litrosEstimadosMin:
+          type: number
+          example: 60
+        litrosEstimadosMax:
+          type: number
+          example: 90
+        litrosRegistrados:
+          type: number
+        metodo:
+          type: string
+          example: estimado
+        observaciones:
+          type: string
+
+    CombustibleListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsumoCombustible"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    EstimacionCombustible:
+      type: object
+      properties:
+        recorridoId:
+          $ref: "#/components/schemas/UUID"
+        camionId:
+          $ref: "#/components/schemas/UUID"
+        litrosEstimadosMin:
+          type: number
+          example: 60
+        litrosEstimadosMax:
+          type: number
+          example: 90
+        observacion:
+          type: string
+          example: Estimación preliminar basada en consumo diario esperado; no representa medición real.
+
+    Aviso:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        titulo:
+          type: string
+          example: Suspensión temporal de servicio
+        mensaje:
+          type: string
+        tipo:
+          type: string
+          example: general
+        activo:
+          type: boolean
+        coloniaId:
+          $ref: "#/components/schemas/UUID"
+        rutaId:
+          $ref: "#/components/schemas/UUID"
+        creadoEn:
+          $ref: "#/components/schemas/DateTime"
+
+    AvisoCreateRequest:
+      type: object
+      required: [titulo, mensaje]
+      properties:
+        titulo:
+          type: string
+        mensaje:
+          type: string
+        tipo:
+          type: string
+          example: general
+        coloniaId:
+          type: string
+          format: uuid
+          nullable: true
+        rutaId:
+          type: string
+          format: uuid
+          nullable: true
+        activo:
+          type: boolean
+          default: true
+
+    AvisosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Aviso"
+
+    RegistrarSesionAnonimaRequest:
+      type: object
+      required: [session_token]
+      properties:
+        session_token:
+          type: string
+          description: Identificador opaco generado en el dispositivo móvil.
+        colonia_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Colonia seleccionada por el usuario anónimo (no es domicilio).
+        plataforma:
+          type: string
+          nullable: true
+          example: android
+        app_version:
+          type: string
+          nullable: true
+        modelo_dispositivo:
+          type: string
+          nullable: true
+
+    RegistrarSesionAnonimaResponse:
+      type: object
+      properties:
+        sesion_id:
+          type: string
+          format: uuid
+
+    RegistrarEventoAnonimoRequest:
+      type: object
+      required: [session_token, tipo]
+      properties:
+        session_token:
+          type: string
+        tipo:
+          $ref: "#/components/schemas/TipoEventoAnonimo"
+        datos:
+          type: object
+          additionalProperties: true
+          default: {}
+
+    CamionParaAnonimoResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          nullable: true
+          properties:
+            puede_ver:
+              type: boolean
+            motivo:
+              type: string
+            colonia_id:
+              type: string
+              format: uuid
+              nullable: true
+            ruta_id:
+              type: string
+              format: uuid
+              nullable: true
+            recorrido_id:
+              type: string
+              format: uuid
+              nullable: true
+            camion_id:
+              type: string
+              format: uuid
+              nullable: true
+            latitud:
+              type: number
+              nullable: true
+            longitud:
+              type: number
+              nullable: true
+            velocidad_kmh:
+              type: number
+              nullable: true
+            ultima_actualizacion:
+              type: string
+              format: date-time
+              nullable: true
+            mensaje:
+              type: string
+
+    ColoniaHorarioPublico:
+      type: object
+      properties:
+        colonia_id:
+          type: string
+          format: uuid
+        colonia:
+          type: string
+        ruta_id:
+          type: string
+          format: uuid
+        route_id:
+          type: string
+        ruta:
+          type: string
+        horario_estimado:
+          type: string
+          nullable: true
+        hora_inicio_estimada:
+          type: string
+          nullable: true
+        hora_fin_estimada:
+          type: string
+          nullable: true
+
+    PermisoModoUsuario:
+      type: object
+      properties:
+        modo_usuario:
+          type: string
+          enum: [anonimo, ciudadano_registrado]
+        puede_registrar_domicilio:
+          type: boolean
+        puede_guardar_multiples_domicilios:
+          type: boolean
+        puede_recibir_notificaciones_push:
+          type: boolean
+        puede_configurar_alertas_domicilio:
+          type: boolean
+        puede_reportar_incidencias:
+          type: boolean
+        puede_ver_horarios_publicos:
+          type: boolean
+        puede_ver_avisos_publicos:
+          type: boolean
+        puede_ver_guia_separacion:
+          type: boolean
+        puede_ver_camion_solo_en_colonia:
+          type: boolean
+
+    EstadisticasAnonimosResponse:
+      type: object
+      properties:
+        kpis:
+          type: object
+          properties:
+            conectados_ahora:
+              type: integer
+              description: Sesiones activas con ultimo_uso_en en los últimos 5 minutos.
+            sesiones_hoy:
+              type: integer
+            eventos_hoy:
+              type: integer
+            reportes_anonimos:
+              type: integer
+              description: Consultas (camión/horario/aviso/colonia) en 7 días.
+            total_sesiones_7d:
+              type: integer
+        top_colonias:
+          type: array
+          items:
+            type: object
+            properties:
+              colonia_id:
+                type: string
+                format: uuid
+              colonia:
+                type: string
+              total:
+                type: integer
+        distribucion_eventos:
+          type: array
+          items:
+            type: object
+            properties:
+              tipo:
+                $ref: "#/components/schemas/TipoEventoAnonimo"
+              total:
+                type: integer
+        serie_diaria:
+          type: array
+          items:
+            type: object
+            properties:
+              fecha:
+                type: string
+                format: date
+              sesiones:
+                type: integer
+              eventos:
+                type: integer
+        pagination:
+          $ref: "#/components/schemas/Pagination"

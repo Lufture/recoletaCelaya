@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Test-Path *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Joshua\\\\Desktop\\\\HackOnLinces\\\\panel-admin\\\\app\\\\admin\" -Recurse -Filter \"page.tsx\" | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "Bash(pnpm add *)",
+      "Bash(npx tsc *)",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "PowerShell(cd \"C:\\\\Users\\\\Joshua\\\\Desktop\\\\HackOnLinces\\\\panel-admin\"; npx tsc --noEmit; Write-Host \"Exit code: $LASTEXITCODE\")",
+      "PowerShell(cd \"C:\\\\Users\\\\Joshua\\\\Desktop\\\\HackOnLinces\\\\panel-admin\"; npx tsc --noEmit; Write-Host \"Exit: $LASTEXITCODE\")"
+    ]
+  }
+}
