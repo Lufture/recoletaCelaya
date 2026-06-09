@@ -1,8 +1,8 @@
-# ♻️ Recolecta Celaya - Sistema Integral de Residuos Urbanos
+# Re colecta Celaya - Sistema Integral de Residuos Urbanos
 
 Este repositorio (Monorepo) contiene el ecosistema completo de **Recolecta Celaya**, una plataforma digital diseñada para modernizar, rastrear en tiempo real y optimizar el servicio municipal de recolección de basura, mejorando la logística operativa y la comunicación directa con los ciudadanos.
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 El ecosistema está compuesto por tres proyectos principales que se sincronizan en tiempo real mediante un Backend centralizado. Puedes explorar cada uno de ellos entrando a sus respectivas carpetas:
 
@@ -23,14 +23,14 @@ Dashboard de control web para la gestión operativa.
 
 ---
 
-## 🛠️ Stack Tecnológico Principal
+## Stack Tecnológico Principal
 
 *   **Frontend Web:** Next.js, React, Tailwind CSS.
 *   **Frontend Mobile:** Flutter (Dart).
 *   **BaaS (Backend as a Service):** Supabase (PostgreSQL, Auth, Storage).
 *   **Servicios Geoespaciales:** `flutter_map`, `react-leaflet`, APIs de OpenStreetMap para mapas sin costo y geocodificación.
 
-## 👨‍💻 Autor
+##  Autor
 Desarrollado por **[lufture](https://github.com/lufture)**.
 
 > **Nota para evaluación / despliegue:**
